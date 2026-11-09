@@ -1,6 +1,6 @@
 // يحفظ واجهة التطبيق حتى يفتح بسرعة ويطلع رسالة واضحة إذا ماكو إنترنت.
 // بيانات النظام نفسها ما تنحفظ هنا، دائماً تنجاب من الإنترنت.
-const CACHE = 'dhimam-shell-v1';
+const CACHE = 'dhimam-shell-v2';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'jsqr.js', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png'];
 
 self.addEventListener('install', e => {

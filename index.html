@@ -118,6 +118,11 @@
   const sc = document.getElementById('scan'), video = sc.querySelector('video');
   const $ = id => document.getElementById(id);
   let sys = null, job = null, stream = null, det = null, cv = null, jsqrP = null;
+  // نسخة من جلسة الدخول بذاكرة التطبيق، حتى يبقى المستخدم مسجل لحد ما يسجل خروج
+  const tok = {
+    get() { try { return localStorage.getItem('dh_token'); } catch (e) { return null; } },
+    set(t) { try { t ? localStorage.setItem('dh_token', String(t).slice(0, 200)) : localStorage.removeItem('dh_token'); } catch (e) {} }
+  };
   const hasCam = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
   const reply = m => { try { if (sys) sys.win.postMessage(Object.assign({ app: 'dhimam' }, m), sys.origin); } catch (e) {} };
   const loadJsQR = () => jsqrP || (jsqrP = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'jsqr.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); }));
@@ -131,7 +136,8 @@
     if (!SYS_ORIGIN.test(e.origin)) return;
     const d = e.data || {}; if (d.app !== 'dhimam') return;
     sys = { win: e.source, origin: e.origin };
-    if (d.t === 'hello') reply({ t: 'shell', cam: hasCam() });
+    if (d.t === 'hello') reply({ t: 'shell', cam: hasCam(), token: tok.get() });
+    else if (d.t === 'token') tok.set(d.token);
     else if (d.t === 'scan') startScan(d);
     else if (d.t === 'stop') { if (job && job.id === d.id) endScan(); }
     else if (d.t === 'last') { if (job && job.id === d.id) { $('s-last').textContent = d.text || ''; $('s-last').style.display = d.text ? 'block' : 'none'; $('s-cnt').textContent = d.n || 0; } }
