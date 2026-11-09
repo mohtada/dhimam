@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>نظام الذمم والمخازن</title>
+<meta name="theme-color" content="#1d5a48">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="المخازن">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root { --brand:#1d5a48; --bg:#f3f1ea; }
+  html, body { margin:0; height:100%; background:var(--bg); overflow:hidden; }
+  body { font-family:'IBM Plex Sans Arabic',Tahoma,'Segoe UI',sans-serif; }
+  .safe-top { position:fixed; inset:0 0 auto 0; height:env(safe-area-inset-top); background:var(--bg); }
+  #app { position:fixed; top:env(safe-area-inset-top); right:0; left:0; bottom:0; width:100%;
+         height:calc(100% - env(safe-area-inset-top)); border:0; background:var(--bg); }
+  #splash { position:fixed; inset:0; z-index:5; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+            background:var(--brand); color:#fff; text-align:center; padding:24px; transition:opacity .35s; }
+  #splash.hide { opacity:0; pointer-events:none; }
+  #splash img { width:96px; height:96px; border-radius:22px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+  #splash h1 { margin:6px 0 0; font-size:20px; font-weight:700; }
+  #splash p { margin:0; font-size:14px; opacity:.85; line-height:1.8; }
+  .spin { width:26px; height:26px; border:3px solid rgba(255,255,255,.25); border-top-color:#fff; border-radius:50%; animation:r 1s linear infinite; margin-top:8px; }
+  @keyframes r { to { transform:rotate(360deg); } }
+  .msg { display:none; flex-direction:column; align-items:center; gap:12px; max-width:320px; }
+  .msg.on { display:flex; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:12px; padding:12px 20px; font:inherit; font-size:15px; font-weight:600;
+         background:#fff; color:var(--brand); text-decoration:none; cursor:pointer; min-height:46px; }
+  .btn.ghost { background:rgba(255,255,255,.14); color:#fff; }
+  /* الماسح: الكاميرا تشتغل من هنا لأن Google يمنعها داخل صفحات Apps Script */
+  #scan { position:fixed; inset:0; z-index:20; background:#000; color:#fff; display:none; flex-direction:column; }
+  #scan.on { display:flex; }
+  #scan video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .s-top { position:relative; z-index:2; display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+           background:linear-gradient(rgba(0,0,0,.55),transparent); }
+  .s-top h3 { margin:0; font-size:17px; font-weight:700; flex:1; }
+  .s-x { width:44px; height:44px; border-radius:12px; border:0; background:rgba(255,255,255,.16); color:#fff; font-size:22px; cursor:pointer; }
+  .s-cnt { background:rgba(255,255,255,.2); border-radius:20px; padding:4px 12px; font-size:14px; font-weight:700; display:none; }
+  .s-frame { position:relative; z-index:1; flex:1; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+  .s-frame i { width:min(68vw,68vh,340px); aspect-ratio:1; border:3px solid rgba(255,255,255,.9); border-radius:22px; box-shadow:0 0 0 100vmax rgba(0,0,0,.35); }
+  .s-frame.hit i { border-color:#5fd39a; }
+  .s-bot { position:relative; z-index:2; padding:12px 14px calc(14px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:10px;
+           background:linear-gradient(transparent,rgba(0,0,0,.65)); }
+  .s-msg { text-align:center; font-size:15px; min-height:22px; }
+  .s-last { text-align:center; font-size:15px; font-weight:600; background:rgba(29,90,72,.92); border-radius:12px; padding:10px 12px; display:none; }
+  .s-row { display:flex; gap:10px; } .s-row .btn { flex:1; }
+</style>
+</head>
+<body>
+<div class="safe-top"></div>
+<div id="splash">
+  <img src="icon-192.png" alt="">
+  <h1>نظام الذمم والمخازن</h1>
+  <div class="spin" id="spin"></div>
+  <div class="msg" id="offline">
+    <p>ماكو اتصال بالإنترنت. أول ما يرجع الاتصال يفتح النظام تلقائياً.</p>
+    <button class="btn" type="button" data-retry>إعادة المحاولة</button>
+  </div>
+  <div class="msg" id="slow">
+    <p>النظام ياخذ وقت حتى يفتح.</p>
+    <button class="btn" type="button" data-retry>إعادة المحاولة</button>
+    <a class="btn ghost" id="direct" target="_blank" rel="noopener">افتحه بالمتصفح</a>
+  </div>
+</div>
+<iframe id="app" title="نظام الذمم والمخازن" allow="clipboard-write; fullscreen"></iframe>
+
+<div id="scan">
+  <video playsinline muted></video>
+  <div class="s-top"><button class="s-x" type="button" data-done aria-label="إغلاق">×</button><h3 id="s-title">مسح الباركود</h3><span class="s-cnt" id="s-cnt">0</span></div>
+  <div class="s-frame" id="s-frame"><i></i></div>
+  <div class="s-bot">
+    <div class="s-msg" id="s-msg">وجّه الكاميرا على الملصق</div>
+    <div class="s-last" id="s-last"></div>
+    <div class="s-row">
+      <button class="btn ghost" type="button" data-manual>كتابة الرمز</button>
+      <button class="btn" type="button" data-done id="s-done">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // رابط النظام (Apps Script). إذا تغيّر الرابط بدّله هنا بس.
+  const APP_URL = 'https://script.google.com/macros/s/AKfycbzT6tKn8be6piOxKBeYkTjDb-4To8jem8Bb7oGUM9JCefkriF_LEX9UsPHRYjhfxCdnfw/exec';
+  // صفحات Apps Script تشتغل من نطاق googleusercontent.com، ونقبل رسائل الماسح منها بس.
+  const SYS_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/i;
+
+  const frame = document.getElementById('app'), splash = document.getElementById('splash');
+  const show = id => { document.getElementById('spin').style.display = id ? 'none' : '';
+    ['offline', 'slow'].forEach(x => document.getElementById(x).classList.toggle('on', x === id)); };
+  // رابط الـQR إذا انفتح بالتطبيق (…/?i=F-00001) ينقل رقم المادة للنظام
+  const item = (new URLSearchParams(location.search).get('i') || new URLSearchParams(location.search).get('item') || '').replace(/[^A-Za-z0-9-]/g, '');
+  const target = APP_URL + (item ? (APP_URL.includes('?') ? '&' : '?') + 'i=' + encodeURIComponent(item) : '');
+  document.getElementById('direct').href = target;
+  let timer = null, loaded = false;
+
+  function load() {
+    loaded = false; splash.classList.remove('hide'); show(null);
+    if (!navigator.onLine) { show('offline'); return; }
+    clearTimeout(timer);
+    timer = setTimeout(() => { if (!loaded) show('slow'); }, 20000);
+    frame.src = target;
+  }
+  frame.addEventListener('load', () => {
+    if (!frame.src) return;
+    loaded = true; clearTimeout(timer);
+    setTimeout(() => splash.classList.add('hide'), 250);
+  });
+  document.querySelectorAll('[data-retry]').forEach(b => b.addEventListener('click', load));
+  window.addEventListener('online', () => { if (!loaded) load(); });
+
+  /* ───── الماسح ───── */
+  const sc = document.getElementById('scan'), video = sc.querySelector('video');
+  const $ = id => document.getElementById(id);
+  let sys = null, job = null, stream = null, det = null, cv = null, jsqrP = null;
+  const hasCam = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  const reply = m => { try { if (sys) sys.win.postMessage(Object.assign({ app: 'dhimam' }, m), sys.origin); } catch (e) {} };
+  const loadJsQR = () => jsqrP || (jsqrP = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'jsqr.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); }));
+  function buzz() {
+    try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {}
+    try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(), g = a.createGain();
+      o.frequency.value = 1150; g.gain.value = .12; o.connect(g); g.connect(a.destination); o.start(); setTimeout(() => { o.stop(); a.close(); }, 110); } catch (e) {}
+  }
+
+  window.addEventListener('message', e => {
+    if (!SYS_ORIGIN.test(e.origin)) return;
+    const d = e.data || {}; if (d.app !== 'dhimam') return;
+    sys = { win: e.source, origin: e.origin };
+    if (d.t === 'hello') reply({ t: 'shell', cam: hasCam() });
+    else if (d.t === 'scan') startScan(d);
+    else if (d.t === 'stop') { if (job && job.id === d.id) endScan(); }
+    else if (d.t === 'last') { if (job && job.id === d.id) { $('s-last').textContent = d.text || ''; $('s-last').style.display = d.text ? 'block' : 'none'; $('s-cnt').textContent = d.n || 0; } }
+  });
+
+  async function startScan(d) {
+    endScan();
+    job = { id: d.id, continuous: !!d.continuous, last: '', at: 0 };
+    $('s-title').textContent = d.title || 'مسح الباركود';
+    $('s-cnt').style.display = job.continuous ? 'inline-block' : 'none'; $('s-cnt').textContent = '0';
+    $('s-last').style.display = 'none'; $('s-msg').textContent = 'وجّه الكاميرا على الملصق';
+    $('s-done').textContent = job.continuous ? 'إنهاء المسح' : 'إغلاق';
+    sc.classList.add('on');
+    const my = job;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false });
+      if (job !== my) { stream.getTracks().forEach(t => t.stop()); stream = null; return; }
+      video.srcObject = stream; await video.play();
+      if (!det && 'BarcodeDetector' in window) { try { det = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13'] }); } catch (e) { det = null; } }
+      if (!det) await loadJsQR();
+      cv = cv || document.createElement('canvas');
+      loop(my);
+    } catch (e) {
+      sc.classList.remove('on'); job = null;
+      reply({ t: 'nocam', id: my.id });
+    }
+  }
+  async function loop(my) {
+    if (job !== my) return;
+    try {
+      if (video.readyState >= 2) {
+        let txt = '';
+        if (det) { const r = await det.detect(video); if (r && r[0]) txt = r[0].rawValue; }
+        else {
+          const w = 640, h = Math.round(video.videoHeight / video.videoWidth * 640) || 480; cv.width = w; cv.height = h;
+          const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(video, 0, 0, w, h);
+          const r = jsQR(cx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' }); if (r) txt = r.data;
+        }
+        if (txt && job === my) {
+          const now = Date.now();
+          if (!(txt === my.last && now - my.at < 2500)) {
+            my.last = txt; my.at = now; buzz();
+            $('s-frame').classList.add('hit'); setTimeout(() => $('s-frame').classList.remove('hit'), 300);
+            reply({ t: 'code', id: my.id, text: txt });
+            if (!my.continuous) { endScan(); return; }
+          }
+        }
+      }
+    } catch (e) {}
+    setTimeout(() => loop(my), det ? 160 : 220);
+  }
+  function endScan() {
+    job = null; sc.classList.remove('on');
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    video.srcObject = null;
+  }
+  sc.querySelectorAll('[data-done]').forEach(b => b.addEventListener('click', () => { const j = job; endScan(); if (j) reply({ t: 'closed', id: j.id }); }));
+  sc.querySelector('[data-manual]').addEventListener('click', () => { const j = job; endScan(); if (j) reply({ t: 'closed', id: j.id, manual: true }); });
+  history.replaceState(null, '', location.pathname);   // ما نخلي رقم المادة بالرابط حتى ما يرجع يفتح نفسها
+  load();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
