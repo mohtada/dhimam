@@ -18,8 +18,15 @@
   html, body { margin:0; height:100%; background:var(--bg); overflow:hidden; }
   body { font-family:'IBM Plex Sans Arabic',Tahoma,'Segoe UI',sans-serif; }
   .safe-top { position:fixed; inset:0 0 auto 0; height:env(safe-area-inset-top); background:var(--bg); }
-  #app { position:fixed; top:env(safe-area-inset-top); right:0; left:0; bottom:0; width:100%;
-         height:calc(100% - env(safe-area-inset-top)); border:0; background:var(--bg); }
+  #app { position:fixed; top:env(safe-area-inset-top); right:0; left:0; width:100%;
+         height:calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom)); border:0; background:var(--bg); }
+  /* شريط أسفل الشاشة (منطقة مؤشر الآيفون) بلون شريط التنقل حتى يبين متصل وياه */
+  .safe-bot { position:fixed; right:0; left:0; top:calc(100% - env(safe-area-inset-bottom)); height:env(safe-area-inset-bottom); background:#fff; }
+  /* التطبيق المثبت على الآيفون: 100% تطلع أقصر من الشاشة فيبقى فراغ جوه. vh ياخذ الشاشة كاملة */
+  .standalone, .standalone body { height:100vh; }
+  .standalone #app { height:calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  .standalone .safe-bot { top:calc(100vh - env(safe-area-inset-bottom)); }
+  .standalone #splash, .standalone #scan { bottom:auto; height:100vh; }
   #splash { position:fixed; inset:0; z-index:5; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
             background:var(--brand); color:#fff; text-align:center; padding:24px; transition:opacity .35s; }
   #splash.hide { opacity:0; pointer-events:none; }
@@ -54,6 +61,7 @@
 </head>
 <body>
 <div class="safe-top"></div>
+<div class="safe-bot"></div>
 <div id="splash">
   <img src="icon-192.png" alt="">
   <h1>نظام الذمم والمخازن</h1>
@@ -85,6 +93,7 @@
 </div>
 
 <script>
+  try { if (navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) document.documentElement.classList.add('standalone'); } catch (e) {}
   // رابط النظام (Apps Script). إذا تغيّر الرابط بدّله هنا بس.
   const APP_URL = 'https://script.google.com/macros/s/AKfycbzT6tKn8be6piOxKBeYkTjDb-4To8jem8Bb7oGUM9JCefkriF_LEX9UsPHRYjhfxCdnfw/exec';
   // صفحات Apps Script تشتغل من نطاق googleusercontent.com، ونقبل رسائل الماسح منها بس.
