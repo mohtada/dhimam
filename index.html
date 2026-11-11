@@ -88,7 +88,7 @@
   // رابط النظام (Apps Script). إذا تغيّر الرابط بدّله هنا بس.
   const APP_URL = 'https://script.google.com/macros/s/AKfycbzT6tKn8be6piOxKBeYkTjDb-4To8jem8Bb7oGUM9JCefkriF_LEX9UsPHRYjhfxCdnfw/exec';
   // صفحات Apps Script تشتغل من نطاق googleusercontent.com، ونقبل رسائل الماسح منها بس.
-  const SYS_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/i;
+  const SYS_ORIGIN = /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/i;
 
   const frame = document.getElementById('app'), splash = document.getElementById('splash');
   const show = id => { document.getElementById('spin').style.display = id ? 'none' : '';
@@ -132,8 +132,17 @@
       o.frequency.value = 1150; g.gain.value = .12; o.connect(g); g.connect(a.destination); o.start(); setTimeout(() => { o.stop(); a.close(); }, 110); } catch (e) {}
   }
 
+  /* الرسالة مقبولة فقط إذا مرسلها نافذة داخل إطار النظام (أو الإطار نفسه). أي صفحة خارجية تنرفض حتى لو نطاقها googleusercontent */
+  function fromApp(src) {
+    try {
+      const root = frame.contentWindow; let w = src;
+      for (let i = 0; w && i < 8; i++) { if (w === root) return true; if (w === window || w.parent === w) return false; w = w.parent; }
+    } catch (err) { }
+    return false;
+  }
+
   window.addEventListener('message', e => {
-    if (!SYS_ORIGIN.test(e.origin)) return;
+    if (!SYS_ORIGIN.test(e.origin) || !fromApp(e.source)) return;   // فقط من داخل إطار النظام نفسه
     const d = e.data || {}; if (d.app !== 'dhimam') return;
     sys = { win: e.source, origin: e.origin };
     if (d.t === 'hello') reply({ t: 'shell', cam: hasCam(), token: tok.get() });
