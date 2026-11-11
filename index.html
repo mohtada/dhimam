@@ -217,6 +217,34 @@
   history.replaceState(null, '', location.pathname);   // ما نخلي رقم المادة بالرابط حتى ما يرجع يفتح نفسها
   load();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+  /* ضبط الارتفاع بالبكسل: بتطبيق الآيفون المثبت أحياناً «100%» تطلع أقصر من الشاشة بمقدار شريط الحالة */
+  (function () {
+    const d = document.documentElement, app = document.getElementById('app'), sb = document.querySelector('.safe-bot'), stp = document.querySelector('.safe-top');
+    const vhEl = document.createElement('div'); vhEl.style.cssText = 'position:fixed;top:0;left:0;width:0;height:100vh;visibility:hidden;pointer-events:none'; document.body.appendChild(vhEl);
+    const dg = document.createElement('div'); dg.id = 'dg';
+    dg.style.cssText = 'position:fixed;z-index:50;left:6px;top:45%;max-width:70%;background:rgba(0,0,0,.72);color:#fff;font:11px/1.5 monospace;padding:6px 8px;border-radius:8px;direction:ltr;text-align:left;pointer-events:none;white-space:pre';
+    document.body.appendChild(dg);
+    function fit() {
+      const st = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+      const top = stp.getBoundingClientRect().height, bot = parseFloat(getComputedStyle(sb).height) || 0;
+      const iH = window.innerHeight, cH = d.clientHeight, vh = vhEl.getBoundingClientRect().height;
+      const land = window.innerWidth > iH * 1.05;
+      const sH = land ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+      let H = Math.max(iH, cH), why = 'inner';
+      if (st && vh > H && vh - H <= top + 8) { H = vh; why = 'vh'; }
+      if (navigator.standalone === true && sH > H && sH - H <= top + 8) { H = sH; why = 'screen'; }
+      app.style.height = Math.round(H - top - bot) + 'px';
+      sb.style.top = Math.round(H - bot) + 'px';
+      ['splash', 'scan'].forEach(id => { const e = document.getElementById(id); e.style.bottom = 'auto'; e.style.height = Math.round(H) + 'px'; });
+      const r = app.getBoundingClientRect();
+      dg.textContent = 'v5 st=' + (st ? 1 : 0) + ' ios=' + (navigator.standalone === true ? 1 : 0) + '\ninner=' + iH + ' client=' + cH + ' vh=' + Math.round(vh) + '\nscreen=' + screen.width + 'x' + screen.height + ' vv=' + (window.visualViewport ? Math.round(visualViewport.height) : '-') +
+        '\nsafe top=' + Math.round(top) + ' bot=' + Math.round(bot) + '\nH=' + Math.round(H) + ' (' + why + ')\nframe ' + Math.round(r.top) + '..' + Math.round(r.bottom);
+    }
+    fit(); [200, 800, 2500].forEach(t => setTimeout(fit, t));
+    addEventListener('resize', fit); addEventListener('orientationchange', () => setTimeout(fit, 300));
+    if (window.visualViewport) visualViewport.addEventListener('resize', fit);
+  })();
 </script>
 </body>
 </html>
